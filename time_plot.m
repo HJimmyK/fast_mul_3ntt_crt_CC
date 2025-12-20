@@ -5,8 +5,8 @@ set(0, 'DefaultAxesFontName', 'Times New Roman');
 set(0, 'DefaultAxesFontSize', 10);
 set(0, 'DefaultTextFontSize', 12);
 
-data1 = readmatrix("data\time_ntt_cpp.csv");
-data2 = readmatrix("data\time_ntt_c.csv");
+data1 = readmatrix("test_res_data\time_ntt_cpp.csv");
+data2 = readmatrix("test_res_data\time_ntt_c.csv");
 data1=data1./1000;
 
 len = linspace(1000,10000000,251);
