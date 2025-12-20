@@ -1,4 +1,4 @@
-<img width="895" height="743" alt="2" src="https://github.com/user-attachments/assets/4012426b-8874-44f1-9db7-753ea4c45798" /># fast_mul_3ntt_crt_CC
+# fast_mul_3ntt_crt_CC
 
 A fast implementation of 3ntt-crt multiplication with C code
 
@@ -22,3 +22,4 @@ This is because the main bottleneck of the 3ntt ct algorithm lies in memory read
 <img width="895" height="743" alt="2" src="https://github.com/user-attachments/assets/55895879-170f-4664-b6b2-efae085f856f" />
 <img width="1021" height="834" alt="1" src="https://github.com/user-attachments/assets/125cbc41-683c-467f-88c0-67c62b10e86a" />
 <img width="983" height="827" alt="3" src="https://github.com/user-attachments/assets/56c9d03b-bb51-4d79-ad18-d38c51a70ba0" />
+
