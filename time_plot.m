@@ -30,7 +30,7 @@ hold on
 plot(len, data2(:,3),'Color','b','LineWidth',1.1)
 ylabel("time (ms)", "FontName", "Times New Roman")
 xlabel("u64 array len", "FontName", "Times New Roman")
-title("convolution1 time",  "FontName", "Times New Roman", "FontSize", 12)
+title("convolution3 time",  "FontName", "Times New Roman", "FontSize", 12)
 
 figure(Color='w')
 plot(len, data1(:,4),'Color','r','LineWidth',1.1)
