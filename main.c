@@ -44,12 +44,95 @@
         }                        \
     } while (0)
 
-#define define_convolution_rec(_i)                                                                                    \
-    void convolution_rec_##_i(mont64* in1, mont64* in2, mont64* out, ntt_short* table, size_t ntt_len, bool norm) {   \
+#define define_conv_rec(_i)                                                                                            \
+    void conv_rec_##_i(mont64* in1, mont64* in2, mont64* out, ntt_short* table, size_t ntt_len, bool norm) {           \
+        assert(in1 != NULL && in2 != NULL && out != NULL && table != NULL);                                            \
+        assert(in1 != in2);                                                                                            \
+        if (ntt_len <= long_threshold) {                                                                               \
+            dif_func(in1, table, ntt_len, _i);                                                                         \
+            dif_func(in2, table, ntt_len, _i);                                                                         \
+            if (norm) {                                                                                                \
+                mont64 inv_len = ntt_len;                                                                              \
+                _mont_tomont_func(inv_len, _i);                                                                        \
+                inv_len = _mont_qpow_func_name(_i)(inv_len, ((g_mod(_i)) - 2));                                        \
+                for (size_t ii = 0; ii < ntt_len; ii++) {                                                              \
+                    _mont_mul_func(out[ii], in1[ii], in2[ii], _i);                                                     \
+                    _mont_mulinto_func(out[ii], inv_len, _i);                                                          \
+                }                                                                                                      \
+            } else {                                                                                                   \
+                for (size_t ii = 0; ii < ntt_len; ii++) {                                                              \
+                    _mont_mul_func(out[ii], in1[ii], in2[ii], _i);                                                     \
+                }                                                                                                      \
+            }                                                                                                          \
+            idit_func(out, table, ntt_len, _i);                                                                        \
+            return;                                                                                                    \
+        }                                                                                                              \
+        const size_t quarter_len = ntt_len / 4;                                                                        \
+        mont64 unit_omega1 = g_root(_i);                                                                               \
+        _mont_tomont_func(unit_omega1, _i);                                                                            \
+        unit_omega1 = _mont_qpow_func_name(_i)(unit_omega1, (g_mod(_i) - 1) / ntt_len);                                \
+        mont64 unit_omega3 = _mont_qpow_func_name(_i)(unit_omega1, 3);                                                 \
+        mont64 omega1 = g_one(_i), omega3 = g_one(_i);                                                                 \
+        for (size_t ii = 0; ii < quarter_len; ii++) {                                                                  \
+            mont64 temp0 = in1[ii], temp1 = in1[quarter_len + ii];                                                     \
+            mont64 temp2 = in1[quarter_len * 2 + ii], temp3 = in1[quarter_len * 3 + ii];                               \
+            _dif_butterfly244(temp0, temp1, temp2, temp3, _i);                                                         \
+            in1[ii] = temp0, in1[quarter_len + ii] = temp1;                                                            \
+            _mont_mul_func(in1[quarter_len * 2 + ii], temp2, omega1, _i);                                              \
+            _mont_mul_func(in1[quarter_len * 3 + ii], temp3, omega3, _i);                                              \
+            temp0 = in2[ii], temp1 = in2[quarter_len + ii];                                                            \
+            temp2 = in2[quarter_len * 2 + ii], temp3 = in2[quarter_len * 3 + ii];                                      \
+            _dif_butterfly244(temp0, temp1, temp2, temp3, _i);                                                         \
+            in2[ii] = temp0, in2[quarter_len + ii] = temp1;                                                            \
+            _mont_mul_func(in2[quarter_len * 2 + ii], temp2, omega1, _i);                                              \
+            _mont_mul_func(in2[quarter_len * 3 + ii], temp3, omega3, _i);                                              \
+            _mont_mulinto_func(omega1, unit_omega1, _i);                                                               \
+            _mont_mulinto_func(omega3, unit_omega3, _i);                                                               \
+        }                                                                                                              \
+        conv_rec_##_i(in1, in2, out, table, ntt_len / 2, false);                                                       \
+        conv_rec_##_i(in1 + quarter_len * 2, in2 + quarter_len * 2, out + quarter_len * 2, table, ntt_len / 4, false); \
+        conv_rec_##_i(in1 + quarter_len * 3, in2 + quarter_len * 3, out + quarter_len * 3, table, ntt_len / 4, false); \
+        unit_omega1 = g_rootinv(_i);                                                                                   \
+        _mont_tomont_func(unit_omega1, _i);                                                                            \
+        unit_omega1 = _mont_qpow_func_name(_i)(unit_omega1, (g_mod(_i) - 1) / ntt_len);                                \
+        unit_omega3 = _mont_qpow_func_name(_i)(unit_omega1, 3);                                                        \
+        if (norm) {                                                                                                    \
+            mont64 inv_len = ntt_len;                                                                                  \
+            _mont_tomont_func(inv_len, _i);                                                                            \
+            inv_len = _mont_qpow_func_name(_i)(inv_len, (g_mod(_i) - 2));                                              \
+            omega1 = inv_len, omega3 = inv_len;                                                                        \
+            for (size_t ii = 0; ii < quarter_len; ii++) {                                                              \
+                mont64 temp0, temp1, temp2, temp3;                                                                     \
+                _mont_mul_func(temp0, out[ii], inv_len, _i);                                                           \
+                _mont_mul_func(temp1, out[quarter_len + ii], inv_len, _i);                                             \
+                _mont_mul_func(temp2, out[quarter_len * 2 + ii], omega1, _i);                                          \
+                _mont_mul_func(temp3, out[quarter_len * 3 + ii], omega3, _i);                                          \
+                _idit_butterfly244(temp0, temp1, temp2, temp3, _i);                                                    \
+                out[ii] = temp0, out[quarter_len + ii] = temp1;                                                        \
+                out[quarter_len * 2 + ii] = temp2, out[quarter_len * 3 + ii] = temp3;                                  \
+                _mont_mulinto_func(omega1, unit_omega1, _i);                                                           \
+                _mont_mulinto_func(omega3, unit_omega3, _i);                                                           \
+            }                                                                                                          \
+        } else {                                                                                                       \
+            omega1 = g_one(_i), omega3 = g_one(_i);                                                                    \
+            for (size_t ii = 0; ii < quarter_len; ii++) {                                                              \
+                mont64 temp0 = out[ii], temp1 = out[quarter_len + ii], temp2, temp3;                                   \
+                _mont_mul_func(temp2, out[quarter_len * 2 + ii], omega1, _i);                                          \
+                _mont_mul_func(temp3, out[quarter_len * 3 + ii], omega3, _i);                                          \
+                _idit_butterfly244(temp0, temp1, temp2, temp3, _i);                                                    \
+                out[ii] = temp0, out[quarter_len + ii] = temp1;                                                        \
+                out[quarter_len * 2 + ii] = temp2, out[quarter_len * 3 + ii] = temp3;                                  \
+                _mont_mulinto_func(omega1, unit_omega1, _i);                                                           \
+                _mont_mulinto_func(omega3, unit_omega3, _i);                                                           \
+            }                                                                                                          \
+        }                                                                                                              \
+    }
+
+#define define_conv_single(_i)                                                                                        \
+    void conv_single_##_i(const mont64* in1, mont64* in2, mont64* out, ntt_short* table, size_t ntt_len, bool norm) { \
         assert(in1 != NULL && in2 != NULL && out != NULL && table != NULL);                                           \
         assert(in1 != in2);                                                                                           \
         if (ntt_len <= long_threshold) {                                                                              \
-            dif_func(in1, table, ntt_len, _i);                                                                        \
             dif_func(in2, table, ntt_len, _i);                                                                        \
             if (norm) {                                                                                               \
                 mont64 inv_len = ntt_len;                                                                             \
@@ -74,14 +157,8 @@
         mont64 unit_omega3 = _mont_qpow_func_name(_i)(unit_omega1, 3);                                                \
         mont64 omega1 = g_one(_i), omega3 = g_one(_i);                                                                \
         for (size_t ii = 0; ii < quarter_len; ii++) {                                                                 \
-            mont64 temp0 = in1[ii], temp1 = in1[quarter_len + ii];                                                    \
-            mont64 temp2 = in1[quarter_len * 2 + ii], temp3 = in1[quarter_len * 3 + ii];                              \
-            _dif_butterfly244(temp0, temp1, temp2, temp3, _i);                                                        \
-            in1[ii] = temp0, in1[quarter_len + ii] = temp1;                                                           \
-            _mont_mul_func(in1[quarter_len * 2 + ii], temp2, omega1, _i);                                             \
-            _mont_mul_func(in1[quarter_len * 3 + ii], temp3, omega3, _i);                                             \
-            temp0 = in2[ii], temp1 = in2[quarter_len + ii];                                                           \
-            temp2 = in2[quarter_len * 2 + ii], temp3 = in2[quarter_len * 3 + ii];                                     \
+            mont64 temp0 = in2[ii], temp1 = in2[quarter_len + ii];                                                    \
+            mont64 temp2 = in2[quarter_len * 2 + ii], temp3 = in2[quarter_len * 3 + ii];                              \
             _dif_butterfly244(temp0, temp1, temp2, temp3, _i);                                                        \
             in2[ii] = temp0, in2[quarter_len + ii] = temp1;                                                           \
             _mont_mul_func(in2[quarter_len * 2 + ii], temp2, omega1, _i);                                             \
@@ -89,11 +166,11 @@
             _mont_mulinto_func(omega1, unit_omega1, _i);                                                              \
             _mont_mulinto_func(omega3, unit_omega3, _i);                                                              \
         }                                                                                                             \
-        convolution_rec_##_i(in1, in2, out, table, ntt_len / 2, false);                                               \
-        convolution_rec_##_i(in1 + quarter_len * 2, in2 + quarter_len * 2, out + quarter_len * 2, table, ntt_len / 4, \
-                             false);                                                                                  \
-        convolution_rec_##_i(in1 + quarter_len * 3, in2 + quarter_len * 3, out + quarter_len * 3, table, ntt_len / 4, \
-                             false);                                                                                  \
+        conv_single_##_i(in1, in2, out, table, ntt_len / 2, false);                                                   \
+        conv_single_##_i(in1 + quarter_len * 2, in2 + quarter_len * 2, out + quarter_len * 2, table, ntt_len / 4,     \
+                         false);                                                                                      \
+        conv_single_##_i(in1 + quarter_len * 3, in2 + quarter_len * 3, out + quarter_len * 3, table, ntt_len / 4,     \
+                         false);                                                                                      \
         unit_omega1 = g_rootinv(_i);                                                                                  \
         _mont_tomont_func(unit_omega1, _i);                                                                           \
         unit_omega1 = _mont_qpow_func_name(_i)(unit_omega1, (g_mod(_i) - 1) / ntt_len);                               \
@@ -130,9 +207,90 @@
         }                                                                                                             \
     }
 
-define_convolution_rec(1) define_convolution_rec(2) define_convolution_rec(3)
+#define define_conv_sqr(_i)                                                                     \
+    void conv_sqr_##_i(mont64* in1, mont64* out, ntt_short* table, size_t ntt_len, bool norm) { \
+        assert(in1 != NULL && out != NULL && table != NULL);                                    \
+        if (ntt_len <= long_threshold) {                                                        \
+            dif_func(in1, table, ntt_len, _i);                                                  \
+            if (norm) {                                                                         \
+                mont64 inv_len = ntt_len;                                                       \
+                _mont_tomont_func(inv_len, _i);                                                 \
+                inv_len = _mont_qpow_func_name(_i)(inv_len, ((g_mod(_i)) - 2));                 \
+                for (size_t ii = 0; ii < ntt_len; ii++) {                                       \
+                    _mont_mul_func(out[ii], in1[ii], in1[ii], _i);                              \
+                    _mont_mulinto_func(out[ii], inv_len, _i);                                   \
+                }                                                                               \
+            } else {                                                                            \
+                for (size_t ii = 0; ii < ntt_len; ii++) {                                       \
+                    _mont_mul_func(out[ii], in1[ii], in1[ii], _i);                              \
+                }                                                                               \
+            }                                                                                   \
+            idit_func(out, table, ntt_len, _i);                                                 \
+            return;                                                                             \
+        }                                                                                       \
+        const size_t quarter_len = ntt_len / 4;                                                 \
+        mont64 unit_omega1 = g_root(_i);                                                        \
+        _mont_tomont_func(unit_omega1, _i);                                                     \
+        unit_omega1 = _mont_qpow_func_name(_i)(unit_omega1, (g_mod(_i) - 1) / ntt_len);         \
+        mont64 unit_omega3 = _mont_qpow_func_name(_i)(unit_omega1, 3);                          \
+        mont64 omega1 = g_one(_i), omega3 = g_one(_i);                                          \
+        for (size_t ii = 0; ii < quarter_len; ii++) {                                           \
+            mont64 temp0 = in1[ii], temp1 = in1[quarter_len + ii];                              \
+            mont64 temp2 = in1[quarter_len * 2 + ii], temp3 = in1[quarter_len * 3 + ii];        \
+            _dif_butterfly244(temp0, temp1, temp2, temp3, _i);                                  \
+            in1[ii] = temp0, in1[quarter_len + ii] = temp1;                                     \
+            _mont_mul_func(in1[quarter_len * 2 + ii], temp2, omega1, _i);                       \
+            _mont_mul_func(in1[quarter_len * 3 + ii], temp3, omega3, _i);                       \
+            _mont_mulinto_func(omega1, unit_omega1, _i);                                        \
+            _mont_mulinto_func(omega3, unit_omega3, _i);                                        \
+        }                                                                                       \
+        conv_sqr_##_i(in1, out, table, ntt_len / 2, false);                                     \
+        conv_sqr_##_i(in1 + quarter_len * 2, out + quarter_len * 2, table, ntt_len / 4, false); \
+        conv_sqr_##_i(in1 + quarter_len * 3, out + quarter_len * 3, table, ntt_len / 4, false); \
+        unit_omega1 = g_rootinv(_i);                                                            \
+        _mont_tomont_func(unit_omega1, _i);                                                     \
+        unit_omega1 = _mont_qpow_func_name(_i)(unit_omega1, (g_mod(_i) - 1) / ntt_len);         \
+        unit_omega3 = _mont_qpow_func_name(_i)(unit_omega1, 3);                                 \
+        if (norm) {                                                                             \
+            mont64 inv_len = ntt_len;                                                           \
+            _mont_tomont_func(inv_len, _i);                                                     \
+            inv_len = _mont_qpow_func_name(_i)(inv_len, (g_mod(_i) - 2));                       \
+            omega1 = inv_len, omega3 = inv_len;                                                 \
+            for (size_t ii = 0; ii < quarter_len; ii++) {                                       \
+                mont64 temp0, temp1, temp2, temp3;                                              \
+                _mont_mul_func(temp0, out[ii], inv_len, _i);                                    \
+                _mont_mul_func(temp1, out[quarter_len + ii], inv_len, _i);                      \
+                _mont_mul_func(temp2, out[quarter_len * 2 + ii], omega1, _i);                   \
+                _mont_mul_func(temp3, out[quarter_len * 3 + ii], omega3, _i);                   \
+                _idit_butterfly244(temp0, temp1, temp2, temp3, _i);                             \
+                out[ii] = temp0, out[quarter_len + ii] = temp1;                                 \
+                out[quarter_len * 2 + ii] = temp2, out[quarter_len * 3 + ii] = temp3;           \
+                _mont_mulinto_func(omega1, unit_omega1, _i);                                    \
+                _mont_mulinto_func(omega3, unit_omega3, _i);                                    \
+            }                                                                                   \
+        } else {                                                                                \
+            omega1 = g_one(_i), omega3 = g_one(_i);                                             \
+            for (size_t ii = 0; ii < quarter_len; ii++) {                                       \
+                mont64 temp0 = out[ii], temp1 = out[quarter_len + ii], temp2, temp3;            \
+                _mont_mul_func(temp2, out[quarter_len * 2 + ii], omega1, _i);                   \
+                _mont_mul_func(temp3, out[quarter_len * 3 + ii], omega3, _i);                   \
+                _idit_butterfly244(temp0, temp1, temp2, temp3, _i);                             \
+                out[ii] = temp0, out[quarter_len + ii] = temp1;                                 \
+                out[quarter_len * 2 + ii] = temp2, out[quarter_len * 3 + ii] = temp3;           \
+                _mont_mulinto_func(omega1, unit_omega1, _i);                                    \
+                _mont_mulinto_func(omega3, unit_omega3, _i);                                    \
+            }                                                                                   \
+        }                                                                                       \
+    }
 
-#define convolution_rec_func(in1, in2, out, table, ntt_len, _i) convolution_rec_##_i(in1, in2, out, table, ntt_len, true)
+define_conv_rec(1) define_conv_rec(2) define_conv_rec(3) 
+define_conv_single(1) define_conv_single(2) define_conv_single(3)
+define_conv_sqr(1) define_conv_sqr(2) define_conv_sqr(3)
+
+#define conv_rec_func(in1, in2, out, table, ntt_len, _i) conv_rec_##_i(in1, in2, out, table, ntt_len, true)
+#define conv_sqr_func(in1, out, table, ntt_len, _i) conv_sqr_##_i(in1, out, table, ntt_len, true)
+#define conv_single_func(in1, in2, out, table, ntt_len, _i) conv_single_##_i(in1, in2, out, table, ntt_len, true)
+
 
 u64 int_ceil2(u64 n) {
     const int bits = 64;
@@ -143,12 +301,9 @@ u64 int_ceil2(u64 n) {
     return n + 1;
 }
 
-//static mont64 g_a[long_threshold];
-//static mont64 g_b[long_threshold];
-double time_ntt[251][5];
-
-void abs_mul64(u64* in1, u64 len1, u64* in2, u64 len2, u64* out, uint64_t index) {
+void abs_mul64(u64* in1, u64 len1, u64* in2, u64 len2, u64* out) {
     assert(in1 != NULL && in2 != NULL && out != NULL);
+    assert(in1 != in2);
     u64 out_len = len1 + len2, conv_len = out_len - 1;
     u64 ntt_len = int_ceil2(conv_len);
 
@@ -194,15 +349,15 @@ void abs_mul64(u64* in1, u64 len1, u64* in2, u64 len2, u64* out, uint64_t index)
         _mont_tomont_func(tmp_mont[ii], 1);
     }
 
-    clock_t start, end;
-    double elapsed;
+    //clock_t start, end;
+    //double elapsed;
     cover_nttshort_func(table.log_len, &table, 1);
     
-    start = clock();
-    convolution_rec_func(buf1_mont, tmp_mont, buf1_mont, &table, ntt_len, 1);
-    end = clock();
-    elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
-    time_ntt[index][0] = elapsed;
+    //start = clock();
+    conv_rec_func(buf1_mont, tmp_mont, buf1_mont, &table, ntt_len, 1);
+    //end = clock();
+    //elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+    //printf("%.3f\n", elapsed);
 
     for (size_t ii = len2; ii < ntt_len; ii++) {
         tmp_mont[ii] = 0;
@@ -213,12 +368,12 @@ void abs_mul64(u64* in1, u64 len1, u64* in2, u64 len2, u64* out, uint64_t index)
     }
     cover_nttshort_func(table.log_len, &table, 2);
 
-    start = clock();
+    //start = clock();
 
-    convolution_rec_func(buf2_mont, tmp_mont, buf2_mont, &table, ntt_len, 2);
-    end = clock();
-    elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
-    time_ntt[index][1] = elapsed;
+    conv_rec_func(buf2_mont, tmp_mont, buf2_mont, &table, ntt_len, 2);
+    //end = clock();
+    //elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+    //printf("%.3f\n", elapsed);
 
     for (size_t ii = len2; ii < ntt_len; ii++) {
         tmp_mont[ii] = 0;
@@ -229,13 +384,101 @@ void abs_mul64(u64* in1, u64 len1, u64* in2, u64 len2, u64* out, uint64_t index)
     }
     cover_nttshort_func(table.log_len, &table, 3);
 
-    start = clock();
-    convolution_rec_func(buf3_mont, tmp_mont, buf3_mont, &table, ntt_len, 3);
-    end = clock();
-    elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
-    time_ntt[index][2] = elapsed;
+    //start = clock();
+    conv_rec_func(buf3_mont, tmp_mont, buf3_mont, &table, ntt_len, 3);
+    //end = clock();
+    //elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+    //printf("%.3f\n", elapsed);
 
     ALIGNED_FREE(tmp_mont);
+
+    //start = clock();
+    u192 carry = {0, 0, 0};
+    for (size_t ii = 0; ii < conv_len; ii++) {
+        u192 temp = {0, 0, 0};
+        crt3(buf1_mont[ii], buf2_mont[ii], buf3_mont[ii], temp);
+        _u192add(carry, temp);
+        out[ii] = (*(carry));
+        carry[0] = carry[1];
+        carry[1] = carry[2];
+        carry[2] = 0;
+    }
+
+    out[conv_len] = carry[0];
+    //end = clock();
+    //elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+    //printf("%.3f\n", elapsed);
+
+    ALIGNED_FREE(buf1_mont);
+    ALIGNED_FREE(buf2_mont);
+    ALIGNED_FREE(buf3_mont);
+    ALIGNED_FREE(table.omega);
+    ALIGNED_FREE(table.iomega);
+}
+
+void abs_sqr64(u64* in1, u64 len1, u64* out) {
+    assert(in1 != NULL && out != NULL);
+    u64 out_len = len1 * 2, conv_len = out_len - 1;
+    u64 ntt_len = int_ceil2(conv_len);
+
+    mont64 *buf1_mont, *buf2_mont, *buf3_mont;
+    ALIGNED_MALLOC(buf1_mont, mont64, ntt_len);
+    ALIGNED_MALLOC(buf2_mont, mont64, ntt_len);
+    ALIGNED_MALLOC(buf3_mont, mont64, ntt_len);
+
+    if (buf1_mont == NULL || buf2_mont == NULL || buf3_mont == NULL) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        abort();
+    }
+
+    ntt_short table;
+    table.ntt_len = (ntt_len < long_threshold) ? ntt_len : long_threshold;
+    table.log_len = log2_64(table.ntt_len);
+    // table.omega = g_a;
+    // table.iomega = g_b;
+    ALIGNED_MALLOC(table.omega, mont64, table.ntt_len);
+    ALIGNED_MALLOC(table.iomega, mont64, table.ntt_len);
+
+    for (size_t ii = len1; ii < ntt_len; ii++) {
+        buf1_mont[ii] = 0;
+        buf2_mont[ii] = 0;
+        buf3_mont[ii] = 0;
+    }
+    for (size_t ii = 0; ii < len1; ii++) {
+        buf1_mont[ii] = in1[ii];
+        buf2_mont[ii] = in1[ii];
+        buf3_mont[ii] = in1[ii];
+        _mont_tomont_func(buf1_mont[ii], 1);
+        _mont_tomont_func(buf2_mont[ii], 2);
+        _mont_tomont_func(buf3_mont[ii], 3);
+    }
+
+    clock_t start, end;
+    double elapsed;
+    cover_nttshort_func(table.log_len, &table, 1);
+
+    start = clock();
+    conv_sqr_func(buf1_mont, buf1_mont, &table, ntt_len, 1);
+    end = clock();
+    elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+    printf("%.3f\n", elapsed);
+
+    cover_nttshort_func(table.log_len, &table, 2);
+
+    start = clock();
+    conv_sqr_func(buf2_mont, buf2_mont, &table, ntt_len, 2);
+    end = clock();
+    elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+    printf("%.3f\n", elapsed);
+
+    cover_nttshort_func(table.log_len, &table, 3);
+
+    start = clock();
+    conv_sqr_func(buf3_mont, buf3_mont, &table, ntt_len, 3);
+    end = clock();
+    elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+    printf("%.3f\n", elapsed);
+
 
     start = clock();
     u192 carry = {0, 0, 0};
@@ -252,7 +495,7 @@ void abs_mul64(u64* in1, u64 len1, u64* in2, u64 len2, u64* out, uint64_t index)
     out[conv_len] = carry[0];
     end = clock();
     elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
-    time_ntt[index][3] = elapsed;
+    printf("%.3f\n", elapsed);
 
     ALIGNED_FREE(buf1_mont);
     ALIGNED_FREE(buf2_mont);
@@ -261,29 +504,25 @@ void abs_mul64(u64* in1, u64 len1, u64* in2, u64 len2, u64* out, uint64_t index)
     ALIGNED_FREE(table.iomega);
 }
 
-
-
-double test_mul_time(int len1, int len2, int index) {
+double test_mul_time(int len1, int len2) {
     u64* in1 = (u64*)malloc(len1 * sizeof(u64));
     u64* in2 = (u64*)malloc(len2 * sizeof(u64));
     u64* out = (u64*)malloc((len1 + len2) * sizeof(u64));
     u64 out_len = len1 + len2;
 
-    srand(1);
+    srand(11);
 
     for (int i = 0; i < len1; i++) {
         in1[i] = (u64)rand() * rand();
-    }
-    for (int i = 0; i < len2; i++) {
-        in2[i] = (u64)rand() * rand();
+        in2[i] = in1[i];
     }
 
-    clock_t start = clock();
-    abs_mul64(in1, len1, in2, len2, out, index);
-    clock_t end = clock();
+    //clock_t start = clock();
+    abs_mul64(in1, len1, in2, len2, out);
+    //clock_t end = clock();
 
-    double elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
-    time_ntt[index][4] = elapsed;
+    //double elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+    //printf("%.3f\n", elapsed);
 
     // for (int i = out_len - 10; i < out_len; i++) {
     //     printf("%llu\n", out[i]);
@@ -294,36 +533,105 @@ double test_mul_time(int len1, int len2, int index) {
     free(out);
 }
 
+double test_sqr_time(int len1) {
+    u64* in1 = (u64*)malloc(len1 * sizeof(u64));
+    u64* out = (u64*)malloc((len1 * 2) * sizeof(u64));
+    u64 out_len = len1 * 2;
 
-void write_csv() {
-    FILE* fp = fopen("time_ntt_data.csv", "w");
-    if (fp == NULL) {          
-        perror("failed to open file"); 
-        return;
+    srand(12);
+
+    for (int i = 0; i < len1; i++) {
+        in1[i] = (u64)rand() * rand();
     }
+    clock_t start = clock();
+    abs_sqr64(in1, len1, out);
+    clock_t end = clock();
 
-    // 3. 写入二维数组到CSV文件
-    for (int row = 0; row < 251; row++) { 
-        for (int col = 0; col < 5; col++) { 
-            fprintf(fp, "%.6lf", time_ntt[row][col]);
-            if (col != 4) {
-                fprintf(fp, ",");
-            }
-        }
-        fprintf(fp, "\n");
-    }
+    double elapsed = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+    printf("%.3f\n", elapsed);
 
-    // 4. 关闭文件（必须关闭，确保数据完整写入磁盘）
-    fclose(fp);
-    printf("successfully write time_ntt_data.csv\n");
+    // for (int i = out_len - 10; i < out_len; i++) {
+    //     printf("%llu\n", out[i]);
+    // }
+
+    free(in1);
+    free(out);
 }
-int main() {
 
-    for (int i = 0; i < 251; i++) {
-        int len = 1000 + 39996 * i;
-        printf("%d\n", i);
-        test_mul_time(len, len, i);
+long long measure_real_time(int len1, int len2) {
+    u64* in1 = (u64*)malloc(len1 * sizeof(u64));
+    u64* in2 = (u64*)malloc(len2 * sizeof(u64));
+    u64* out = (u64*)malloc((len1 + len2) * sizeof(u64));
+    u64 out_len = len1 + len2;
+
+    srand(time(NULL));
+
+    for (int i = 0; i < len1; i++) {
+        in1[i] = (u64)rand() * rand();
+        in2[i] = in1[i];
     }
-    write_csv();
+    struct timespec start, end;
+
+    // 获取起始时间（TIME_UTC：UTC时间标准，保证跨平台一致性）
+    timespec_get(&start, TIME_UTC);
+
+    abs_mul64(in1, len1, in2, len2, out);
+
+    // 获取结束时间
+    timespec_get(&end, TIME_UTC);
+
+    free(in1);
+    free(in2);
+    free(out);
+
+
+    // 计算时间差：先转成纳秒，再转换为微秒（避免精度丢失）
+    long long start_ns = (long long)start.tv_sec * 1000000000LL + start.tv_nsec;
+    long long end_ns = (long long)end.tv_sec * 1000000000LL + end.tv_nsec;
+    long long duration_us = (end_ns - start_ns) / 1000LL;
+
+    return duration_us;
+}
+
+int write_longlong_arr_to_csv(const long long* arr, int arr_len, const char* csv_path) {
+    FILE* fp = fopen(csv_path, "w");
+    if (fp == NULL) {          
+        perror("文件打开失败");
+        return -1;
+    }
+
+    for (int i = 0; i < arr_len; i++) {
+        fprintf(fp, "%lld", arr[i]);
+
+        if (i != arr_len - 1) {
+            fprintf(fp, ",");  
+        }
+    }
+
+    fprintf(fp, "\n");
+
+    fclose(fp);
+    printf("success write %s\n", csv_path);
+    return 0;
+}
+
+int main() {
+    const size_t min_len = 10000;
+    const size_t max_len = 10000000;
+    const size_t step = 33300;
+    const size_t time_len = (max_len - min_len) / step + 1;
+    long long times[time_len];
+
+    for (size_t i = 0; i < time_len; i++) {
+        size_t len1 = min_len + i * step;
+        size_t len2 = len1;
+        long long t1 = measure_real_time(len1, len2);
+        long long t2 = measure_real_time(len1, len2);
+        long long t3 = measure_real_time(len1, len2);
+        times[i] = (t1 + t2 + t3) / 3;
+        printf("%llu, %llu\n", i, times[i]);
+    }
+    write_longlong_arr_to_csv(times, time_len, "cc_ntt-crt_times.csv");
+
     return 0;
 }

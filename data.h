@@ -23,24 +23,44 @@
 #include "macro.h"
 
 /* 全局静态变量获取 */
+
+/* global const 原根 */
 #define g_root(i) (global_ROOT##i)
+/* global const 原根逆 */
 #define g_rootinv(i) (global_root_inv##i)
+/* global const 模数 */
 #define g_mod(i) (global_mod##i)
+/* global const R^2对模数的逆 */
 #define g_r2(i) (global_r2##i)
+/* global const 模数的平方 */
 #define g_mod2(i) (global_mod2##i)
+/* global const 模数关于R的逆的负数 */
 #define g_modInvNeg(i) (global_modInvNeg##i)
-#define g_w41(i) (global_w41_##i)
-#define g_w41inv(i) (global_w41_inv##i)
-#define g_w1(i) (global_w1_##i)
-#define g_w2(i) (global_w2_##i)
-#define g_w3(i) (global_w3_##i)
-#define g_w1inv(i) (global_w1_inv##i)
-#define g_w2inv(i) (global_w2_inv##i)
-#define g_w3inv(i) (global_w3_inv##i)
+/* global const G in menten form */
 #define g_mont_root(i) (global_mont_ROOT##i)
+/* global const Ginv in menten form */
 #define g_mont_rootinv(i) (global_mont_ROOT_inv##i)
+/* global const 1 in menten form */
 #define g_one(i) (global_one##i)
 
+/* internal global const */
+#define g_w41(i) (global_w41_##i)
+/* internal global const */
+#define g_w41inv(i) (global_w41_inv##i)
+/* internal global const */
+#define g_w1(i) (global_w1_##i)
+/* internal global const */
+#define g_w2(i) (global_w2_##i)
+/* internal global const */
+#define g_w3(i) (global_w3_##i)
+/* internal global const */
+#define g_w1inv(i) (global_w1_inv##i)
+/* internal global const */
+#define g_w2inv(i) (global_w2_inv##i)
+/* internal global const */
+#define g_w3inv(i) (global_w3_inv##i)
+
+/* R = 2^64 */
 
 /* 原根 */
 const u32 global_ROOT1 = 5u;
@@ -57,26 +77,48 @@ const u64 global_mod1 = 2485986994308513793ull;
 const u64 global_mod2 = 1945555039024054273ull;
 const u64 global_mod3 = 4179340454199820289ull;
 
+/* R^2 mod 模数 */
 const u64 global_r21 = 1974795801822054070ull;
-const u64 global_mod21 = 4971973988617027586ull;
-const u64 global_modInvNeg1 = 2485986994308513791ull;
-
 const u64 global_r22 = 269548777697434221ull;
-const u64 global_mod22 = 3891110078048108546ull;
-const u64 global_modInvNeg2 = 1945555039024054271ull;
-
 const u64 global_r23 = 1878466934230121386ull;
+
+/* 模数的平方 */
+const u64 global_mod21 = 4971973988617027586ull;
+const u64 global_mod22 = 3891110078048108546ull;
 const u64 global_mod23 = 8358680908399640578ull;
+
+/* mont64(ROOT) */
+const mont64 global_mont_ROOT1 = 252201579132747739ull;
+const mont64 global_mont_ROOT2 = 792633534417207249ull;
+const mont64 global_mont_ROOT3 = 1008806316530991091ull;
+
+/* ROOTinv = ROOT^-1 % mod */
+/* mont64(ROOTinv)         */
+const mont64 global_mont_ROOT_inv1 = 208967022709991013ull;
+const mont64 global_mont_ROOT_inv2 = 965571760108234341ull;
+const mont64 global_mont_ROOT_inv3 = 3362687721769970346ull;
+
+/* (mod_inv * mod) % R = 1         */
+/* (mod_inv_neg + mod_inv) % R = 0 */
+const u64 global_modInvNeg1 = 2485986994308513791ull;
+const u64 global_modInvNeg2 = 1945555039024054271ull;
 const u64 global_modInvNeg3 = 4179340454199820287ull;
 
+/*  W_4_1 = qpow(mont64(ROOT), (mod - 1) / 4);  */
 const mont64 global_w41_1 = 1114193638674092305ull;
 const mont64 global_w41_2 = 1227753429952047858ull;
 const mont64 global_w41_3 = 2751416685589087298ull;
 
+/*  W_4_1 = qpow(mont64(ROOTinv), (mod - 1) / 4);  */
 const mont64 global_w41_inv1 = 1371793355634421488ull;
 const mont64 global_w41_inv2 = 717801609072006415ull;
 const mont64 global_w41_inv3 = 1427923768610732991ull;
 
+/*
+ mont64 w1 = qpow(mont64(ROOT), (mod() - 1) / 8);
+ mont64 w2 = qpow(w1, 2);
+ mont64 w3 = qpow(w1, 3);
+*/
 const mont64 global_w1_1 = 1397546744561501820ull;
 const mont64 global_w2_1 = 1114193638674092305ull;
 const mont64 global_w3_1 = 1540210943987252404ull;
@@ -89,6 +131,11 @@ const mont64 global_w1_3 = 457531513967587773ull;
 const mont64 global_w2_3 = 2751416685589087298ull;
 const mont64 global_w3_3 = 2098898615074297118ull;
 
+/*
+ mont64 w1 = qpow(mont64(ROOTinv), (mod() - 1) / 8);
+ mont64 w2 = qpow(w1, 2);
+ mont64 w3 = qpow(w1, 3);
+*/
 const mont64 global_w1_inv1 = 945776050321261389ull;
 const mont64 global_w2_inv1 = 1371793355634421488ull;
 const mont64 global_w3_inv1 = 1088440249747011973ull;
@@ -101,14 +148,7 @@ const mont64 global_w1_inv3 = 2080441839125523171ull;
 const mont64 global_w2_inv3 = 1427923768610732991ull;
 const mont64 global_w3_inv3 = 3721808940232232516ull;
 
-const mont64 global_mont_ROOT1 = 252201579132747739ull;
-const mont64 global_mont_ROOT2 = 792633534417207249ull;
-const mont64 global_mont_ROOT3 = 1008806316530991091ull;
-
-const mont64 global_mont_ROOT_inv1 = 208967022709991013ull;
-const mont64 global_mont_ROOT_inv2 = 965571760108234341ull;
-const mont64 global_mont_ROOT_inv3 = 3362687721769970346ull;
-
+/* mont64(1) */
 const mont64 global_one1 = 1044835113549955065ull;
 const mont64 global_one2 = 936748722493063159ull;
 const mont64 global_one3 = 1729382256910270460ull;

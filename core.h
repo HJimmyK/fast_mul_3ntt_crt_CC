@@ -31,8 +31,8 @@
 typedef u64 u192[3];
 typedef u64 u128[2];
 
-// return i192 < j192
-bool _u192cmp(const u192 i192, const u192 j192) {
+// return i192 < j192 
+INLINE bool _u192cmp(const u192 i192, const u192 j192) {
     if (i192[2] != j192[2])
         return i192[2] < j192[2];
     if (i192[1] != j192[1])

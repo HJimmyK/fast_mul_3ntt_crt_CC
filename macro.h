@@ -25,14 +25,12 @@
 #define INLINE static inline
 
 INLINE void mul64x64to128(uint64_t a, uint64_t b, uint64_t* low, uint64_t* high) {
-    // GCC/Clang的内联汇编语法
     __asm__("mul %[b]"  // 执行 RDX:RAX = RAX * b（a已在RAX中）
             : "=a"(*low),
               "=d"(*high)         // 输出：low = RAX（低64位），high = RDX（高64位）
             : "a"(a), [b] "r"(b)  // 输入：a存入RAX，b存入任意寄存器
             :                     // 无额外寄存器被修改
     );
-
 }
 
 typedef unsigned long long u64;
@@ -96,6 +94,15 @@ typedef unsigned int u32;
         (r) = (x) >= (mod2) ? ((x) - (mod2)) : (x); \
     } while (0)
 
+
+
+/*
+* macro _mont_mul(r, x, y, mod, modInvNeg) whithout "p_mont = t if t < p else t - p"
+* macro _mont_mulinto(x, y, mod, modInvNeg) with "p_mont = t if t < p else t - p"
+*
+* assert((x < mod) && (y < mod))
+*
+*/
 #define _mont_mul(r, x, y, mod, modInvNeg)   \
     do {                                     \
         u128 _tmp1 = {0, 0};                 \
@@ -106,6 +113,17 @@ typedef unsigned int u32;
         _u128add(_tmp2, _tmp2, _tmp1);       \
         (r) = (*(_tmp2 + 1));                \
     } while (0)
+
+/*
+def montgomery_mul(a_mont, b_mont, p):
+    R = 1 << 64
+    p_inv_mod_R = pow(p, -1, R)
+    ab = a_mont * b_mont
+    m = (ab * p_inv_mod_R) % R
+    t = (ab + m * p) // R
+    p_mont = t if t < p else t - p
+    return p_mont
+*/
 
 #define _mont_mulinto(x, y, mod, modInvNeg)                                       \
     do {                                                                          \
