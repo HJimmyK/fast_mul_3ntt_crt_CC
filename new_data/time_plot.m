@@ -23,5 +23,5 @@ y = data2./data1;
 plot(len,y,"Color",'r','LineWidth',1)
 ylabel("speed up", "FontName", "Times New Roman")
 xlabel("u64 array len", "FontName", "Times New Roman")
-title("total time",  "FontName", "Times New Roman", "FontSize", 12)
+title("speed up",  "FontName", "Times New Roman", "FontSize", 12)
 
