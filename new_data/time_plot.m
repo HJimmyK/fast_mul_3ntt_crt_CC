@@ -14,7 +14,7 @@ figure(Color='w')
 plot(len, data1,'Color','r','LineWidth',1.1)
 hold on
 plot(len, data2,'Color','b','LineWidth',1.1)
-ylabel("time (ms)", "FontName", "Times New Roman")
+ylabel("time (us)", "FontName", "Times New Roman")
 xlabel("u64 array len", "FontName", "Times New Roman")
 title("total time",  "FontName", "Times New Roman", "FontSize", 12)
 
